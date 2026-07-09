@@ -1,0 +1,1068 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Puzzle Poster Maker</title>
+    <style>
+      @font-face { font-family: "TPearl"; src: url("fonts/tpearl-regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+      @font-face { font-family: "TPearl"; src: url("fonts/tpearl-medium.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+      @font-face { font-family: "TPearl"; src: url("fonts/tpearl-semibold.ttf") format("truetype"); font-weight: 900; font-style: normal; font-display: swap; }
+      @font-face { font-family: "Asobi Memogaki"; src: url("fonts/asobi-memogaki.ttf") format("truetype"); font-display: swap; }
+      @font-face { font-family: "Crackman"; src: url("fonts/crackman.otf") format("opentype"); font-display: swap; }
+      @font-face { font-family: "ChangBan DianSong"; src: url("fonts/changban-diansong-tc.ttf") format("truetype"); font-display: swap; }
+      @font-face { font-family: "DuanZhuang Song"; src: url("fonts/xc-duanzhuang-song.ttf") format("truetype"); font-display: swap; }
+      @font-face { font-family: "Lemi Shigu Song"; src: url("fonts/lemi-shigu-song.ttf") format("truetype"); font-display: swap; }
+      @font-face { font-family: "Typeprint"; src: url("fonts/pozheng-typeprint.ttf") format("truetype"); font-display: swap; }
+      * { box-sizing: border-box; }
+      :root {
+        --ink: #24211f;
+        --paper: #fffdf4;
+        --paper-soft: #f7f1e7;
+        --rose: #f2619c;
+        --lilac: #e7bef8;
+        --blue: #93abd9;
+        --lemon: #ede986;
+        --line: #24211f;
+        --muted: #6f6862;
+        --shadow: 7px 7px 0 rgba(36, 33, 31, .9);
+      }
+      body {
+        margin: 0;
+        font-family: "TPearl", Arial, Helvetica, sans-serif;
+        background:
+          radial-gradient(circle at 16% 18%, rgba(242, 97, 156, .20), transparent 25%),
+          radial-gradient(circle at 85% 8%, rgba(231, 190, 248, .22), transparent 24%),
+          radial-gradient(circle at 72% 86%, rgba(147, 171, 217, .20), transparent 26%),
+          linear-gradient(135deg, #fffdf4 0%, #f5f0e8 48%, #eef3f9 100%);
+        color: var(--ink);
+        overflow-x: hidden;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: .42;
+        background-image: url("data:image/svg+xml,%3Csvg width='260' height='200' viewBox='0 0 260 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 78 H82 C82 55 111 55 111 78 H178 V132 H112 C112 155 82 155 82 132 H10 Z M182 18 H246 V78 H218 C198 78 198 108 218 108 H246 V188 H178 V132 H112' fill='none' stroke='%2324211f' stroke-width='1.6' stroke-opacity='.16' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-size: 260px 200px;
+        mix-blend-mode: multiply;
+      }
+      main {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 286px minmax(0, 1fr) 306px;
+        gap: 18px;
+        padding: 18px;
+        position: relative;
+        z-index: 1;
+      }
+      aside {
+        max-height: calc(100vh - 36px);
+        overflow-y: auto;
+        padding: 16px;
+        background: rgba(255, 253, 244, .94);
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+      aside:first-child, aside:last-child { border-color: var(--line); }
+      h1 { margin: 6px 0 18px; font-size: 28px; line-height: 1; letter-spacing: 0; }
+      .eyebrow { margin: 0; color: var(--rose); font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+      .panel { margin-bottom: 14px; padding: 12px; border: 2px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.82); box-shadow: 4px 4px 0 rgba(36,33,31,.12); }
+      .panel:nth-of-type(2n) { background: rgba(231, 190, 248, .18); }
+      .panel:nth-of-type(3n) { background: rgba(147, 171, 217, .16); }
+      .panel-title { margin: 0 0 10px; font-size: 13px; font-weight: 900; }
+      .hint { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+      button, label.upload { height: 38px; border: 2px solid var(--line); border-radius: 7px; background: var(--paper); color: var(--ink); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; box-shadow: 3px 3px 0 rgba(36,33,31,.22); transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease; }
+      button:hover, label.upload:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 rgba(36,33,31,.32); }
+      button:active, label.upload:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(36,33,31,.32); }
+      button.primary { background: var(--rose); color: var(--lemon); border-color: var(--line); }
+      button.danger { background: var(--lemon); color: var(--rose); border-color: var(--line); }
+      button.ghost { background: #fff; }
+      label.upload { display: flex; align-items: center; justify-content: center; width: 100%; }
+      label.upload.replace-upload { margin-top: 8px; background: var(--lemon); color: var(--rose); }
+      input[type=file] { display: none; }
+      input[type=range], input[type=text], input[type=color] { width: 100%; }
+      input[type=text] { height: 38px; border: 2px solid var(--line); border-radius: 7px; padding: 0 10px; font: inherit; background: #fff; }
+      select { width: 100%; height: 38px; border: 2px solid var(--line); border-radius: 7px; background: #fff; padding: 0 10px; font: inherit; font-weight: 800; }
+      .font-picker { position: relative; }
+      .font-current { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 0 12px; text-align: left; }
+      .font-current::after { content: "⌄"; font-family: "TPearl", Arial, sans-serif; font-size: 16px; }
+      .font-menu { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; display: none; max-height: 260px; overflow-y: auto; border: 2px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.98); box-shadow: 6px 6px 0 rgba(36,33,31,.20); padding: 6px; }
+      .font-picker.open .font-menu { display: grid; gap: 4px; }
+      .font-option { min-height: 42px; height: auto; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; text-align: left; font-size: 22px; line-height: 1.2; }
+      .font-option:hover { background: rgba(231, 190, 248, .45); border: 0; }
+      .font-option.active { background: var(--lemon); }
+      input[type=color] { height: 96px; padding: 0; border: 2px solid var(--line); border-radius: 8px; background: transparent; cursor: pointer; }
+      .row { display: flex; gap: 8px; align-items: center; }
+      .icon-button { width: 38px; padding: 0; font-size: 18px; line-height: 1; }
+      .icon-button:disabled { cursor: not-allowed; opacity: .35; }
+      .stack { display: grid; gap: 9px; }
+      .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+      .ratio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .ratio-button { height: auto; min-height: 56px; padding: 8px 6px; line-height: 1.15; }
+      .ratio-button span { display: block; margin-top: 4px; color: #76716a; font-size: 11px; font-weight: 800; }
+      .ratio-button.active { background: var(--blue); border-color: var(--line); color: var(--ink); }
+      .ratio-button.active span { color: rgba(36,33,31,.72); }
+      .cover-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .cover-tile { height: 74px; padding: 0; overflow: hidden; border-radius: 8px; background: #eee; }
+      .cover-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .cover-tile.active { outline: 3px solid var(--rose); outline-offset: 2px; }
+      .cover-tile.off { display: grid; place-items: center; background: repeating-linear-gradient(45deg, #fffdf4 0 10px, #ede986 10px 20px); color: var(--ink); }
+      .cover-tile.solid { display: grid; place-items: center; background: linear-gradient(135deg, #f2619c 0 33%, #e7bef8 33% 66%, #93abd9 66%); color: var(--ink); text-shadow: 0 1px 0 rgba(255,255,255,.58); }
+      .sticker-tile { height: 52px; padding: 4px; background: #fff; overflow: hidden; }
+      .sticker-tile img { width: 100%; height: 100%; object-fit: contain; display: block; }
+      .swatch { min-height: 38px; }
+      .stage {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 36px);
+        padding: 18px;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(147, 171, 217, .28), rgba(255, 253, 244, .62)),
+          repeating-linear-gradient(0deg, rgba(36,33,31,.035) 0 1px, transparent 1px 8px);
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+      .stage::before, .stage::after {
+        content: "";
+        position: absolute;
+        pointer-events: none;
+        opacity: .42;
+        background-repeat: no-repeat;
+        background-size: contain;
+        z-index: 0;
+      }
+      .stage::before {
+        width: 220px;
+        height: 170px;
+        left: 18px;
+        bottom: 22px;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 170' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M24 62 H84 C84 40 114 40 114 62 H178 V124 H118 C118 146 86 146 86 124 H24 Z' fill='none' stroke='%23f2619c' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      }
+      .stage::after {
+        width: 190px;
+        height: 190px;
+        right: 18px;
+        top: 86px;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 190 190' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M42 38 H98 C98 18 126 18 126 38 H156 V92 C136 92 136 122 156 122 V152 H96 C96 132 66 132 66 152 H42 Z' fill='none' stroke='%23ede986' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      }
+      .topbar { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.78); box-shadow: 4px 4px 0 rgba(36,33,31,.14); }
+      .message { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+      .canvas-wrap { position: relative; z-index: 1; flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px; }
+      #poster { width: min(100%, 1040px); aspect-ratio: 16 / 10; border: 2px solid var(--line); border-radius: 8px; overflow: hidden; background: white; box-shadow: 10px 10px 0 rgba(36,33,31,.82), 0 28px 80px rgba(52, 64, 90, .16); }
+      svg { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; }
+      .empty { padding: 16px; border: 2px dashed rgba(36,33,31,.45); border-radius: 8px; background: rgba(255,255,255,.76); color: var(--muted); font-size: 13px; line-height: 1.45; }
+      .tool { width: 100%; }
+      .mini-preview { height: 96px; border-radius: 8px; overflow: hidden; border: 2px solid var(--line); background: #fff; }
+      .mini-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .color-picker-row { display: grid; grid-template-columns: 1fr 80px; gap: 10px; align-items: stretch; }
+      .color-apply { height: 96px; }
+      @media (max-width: 980px) {
+        main { display: block; }
+        aside { max-height: none; margin-bottom: 16px; }
+        aside:first-child, aside:last-child { border: 2px solid var(--line); }
+        .stage { min-height: 68vh; padding: 14px; margin-bottom: 16px; }
+        .stage::before, .stage::after { opacity: .25; transform: scale(.75); transform-origin: center; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <aside>
+        <p class="eyebrow">Puzzle Poster Maker</p>
+        <h1>拼圖設計妙不可言！</h1>
+        <section class="panel stack">
+          <p class="panel-title">底片</p>
+          <label class="upload" for="baseInput">上傳底片</label>
+          <label class="upload replace-upload" for="baseInput">更換底片</label>
+          <input id="baseInput" type="file" accept="image/jpeg,image/png,image/webp" />
+          <p class="hint">上傳後直接在畫布裡點選圖片，拖動移動，拉四角縮放；想換照片時點「更換底片」。</p>
+        </section>
+        <section class="panel">
+          <p class="panel-title">畫布比例</p>
+          <div id="ratioGrid" class="ratio-grid"></div>
+          <p class="hint">直版照片請先切到直版，再上傳或調整底片。</p>
+        </section>
+        <section class="panel">
+          <p class="panel-title">覆蓋圖層</p>
+          <div id="coverGrid" class="cover-grid"></div>
+          <label class="upload" style="margin-top:10px">上傳自己的覆蓋圖<input id="coverInput" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+          <p class="hint">點擊縮圖開啟覆蓋；再次點擊當前覆蓋圖可關閉覆蓋層。</p>
+        </section>
+        <section class="panel">
+          <p class="panel-title">拼圖線條</p>
+          <label class="hint">線條透明度</label>
+          <input id="lineOpacity" type="range" min=".2" max="1" step=".02" value=".72" />
+          <div class="grid4" style="margin-top:10px">
+            <button class="swatch" data-line="#f8f8f5" style="background:#f8f8f5"></button>
+            <button class="swatch" data-line="#a4a09a" style="background:#a4a09a"></button>
+            <button class="swatch" data-line="#222222" style="background:#222"></button>
+            <button class="swatch" data-line="#f3d58a" style="background:#f3d58a"></button>
+          </div>
+        </section>
+        <section class="panel stack">
+          <p class="panel-title">文字與貼紙</p>
+          <button id="addText" class="primary">添加文字</button>
+          <div id="stickers" class="grid4"></div>
+        </section>
+      </aside>
+
+      <section class="stage">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">Canvas</p>
+            <p id="message" class="message">先上傳底片並調整；完成後再選擇覆蓋圖層。</p>
+          </div>
+          <div class="row">
+            <button id="undoBtn" class="ghost icon-button" disabled title="撤銷">↶</button>
+            <button id="redoBtn" class="ghost icon-button" disabled title="恢復">↷</button>
+            <button id="resetBtn" class="ghost">重置</button>
+            <button id="exportBtn" class="danger">匯出圖片</button>
+          </div>
+        </div>
+        <div class="canvas-wrap">
+          <div id="poster">
+            <svg id="svg" viewBox="0 0 1600 1000" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+        </div>
+      </section>
+
+      <aside>
+        <p class="panel-title">目前物件</p>
+        <div id="sidePanel" class="empty">點擊拼圖塊或畫布內的圖片開始編輯。</div>
+      </aside>
+    </main>
+    <input id="tileImageInput" type="file" accept="image/jpeg,image/png,image/webp" />
+
+    <script>
+      const canvasPresets = {
+        landscape: { label: "橫版", note: "16:10", w: 1600, h: 1000, cols: 5, rows: 4 },
+        portrait: { label: "直版", note: "10:16", w: 1000, h: 1600, cols: 4, rows: 5 },
+        square: { label: "方形", note: "1:1", w: 1200, h: 1200, cols: 4, rows: 4 }
+      };
+      let W = canvasPresets.landscape.w;
+      let H = canvasPresets.landscape.h;
+      let COLS = canvasPresets.landscape.cols;
+      let ROWS = canvasPresets.landscape.rows;
+      let puzzleLines = [];
+      const ns = "http://www.w3.org/2000/svg";
+      const coverAssets = [
+        "pattern-assets/cover-01.JPG", "pattern-assets/cover-02.JPG", "pattern-assets/cover-03.JPG",
+        "pattern-assets/cover-04.JPG", "pattern-assets/cover-05.JPG", "pattern-assets/cover-06.JPG",
+        "pattern-assets/cover-07.JPG", "pattern-assets/cover-08.jpg", "pattern-assets/cover-09.JPG",
+        "pattern-assets/cover-10.JPG", "pattern-assets/cover-11.JPG", "pattern-assets/cover-12.JPG"
+      ];
+      const fontOptions = [
+        ["TPearl", "TPearl"],
+        ["Asobi Memogaki", "AsobiMemogaki"],
+        ["Crackman", "Crackman"],
+        ["ChangBan DianSong", "長坂點宋"],
+        ["DuanZhuang Song", "香萃端莊宋體"],
+        ["Lemi Shigu Song", "樂米石鼓舊宋"],
+        ["Typeprint", "迫真打字油印體"]
+      ];
+      const colors = ["#f77286", "#ffd166", "#95d77b", "#75d5ee", "#7c6cf0", "#ffffff", "#171717", "#ffb4d8"];
+      const stickerCrops = [
+        { id: "blue-flower", x: 95, y: 35, w: 235, h: 535 },
+        { id: "pink-flower", x: 485, y: 95, w: 455, h: 330 },
+        { id: "orange-flower", x: 55, y: 610, w: 230, h: 545 },
+        { id: "purple-flower", x: 550, y: 620, w: 310, h: 520 },
+        { id: "tree", x: 145, y: 1090, w: 520, h: 620 },
+        { id: "cloud-smile", x: 1165, y: 270, w: 555, h: 365 },
+        { id: "cloud-puff", x: 1900, y: 235, w: 620, h: 420 },
+        { id: "heart-filled", x: 2700, y: 135, w: 285, h: 285 },
+        { id: "heart-line", x: 3065, y: 135, w: 240, h: 300 },
+        { id: "rainbow", x: 965, y: 720, w: 760, h: 785 },
+        { id: "mini-star", x: 1940, y: 775, w: 270, h: 270 },
+        { id: "moon", x: 2260, y: 725, w: 325, h: 310 },
+        { id: "water-drop", x: 2020, y: 1145, w: 185, h: 270 },
+        { id: "big-star", x: 2465, y: 895, w: 705, h: 765 }
+      ];
+      let stickerLibrary = [];
+      const svg = document.getElementById("svg");
+      const msg = document.getElementById("message");
+      const state = {
+        base: null,
+        cover: null,
+        selectedImage: null,
+        selectedTile: null,
+        selectedText: null,
+        selectedSticker: null,
+        canvasPreset: "landscape",
+        lineOpacity: .72,
+        lineColor: "#d4d0cc",
+        tiles: [],
+        texts: [],
+        stickers: [],
+        history: [],
+        future: [],
+        drag: null
+      };
+
+      function el(name, attrs = {}) {
+        const node = document.createElementNS(ns, name);
+        Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+        return node;
+      }
+      function setMsg(text) { msg.textContent = text; }
+      function uid(prefix) { return `${prefix}-${Math.random().toString(36).slice(2, 9)}`; }
+      function cloneProject() {
+        return JSON.parse(JSON.stringify({
+          base: state.base,
+          cover: state.cover,
+          selectedImage: state.selectedImage,
+          selectedTile: state.selectedTile,
+          selectedText: state.selectedText,
+          selectedSticker: state.selectedSticker,
+          canvasPreset: state.canvasPreset,
+          lineOpacity: state.lineOpacity,
+          lineColor: state.lineColor,
+          tiles: state.tiles,
+          texts: state.texts,
+          stickers: state.stickers
+        }));
+      }
+      function restoreProject(snapshot) {
+        Object.assign(state, JSON.parse(JSON.stringify(snapshot)), { drag: null });
+        syncCanvasGeometry(false);
+        renderCoverGrid();
+        renderRatioGrid();
+        renderSide();
+        render();
+        updateHistoryButtons();
+      }
+      function saveHistory() {
+        state.history.push(cloneProject());
+        if (state.history.length > 60) state.history.shift();
+        state.future = [];
+        updateHistoryButtons();
+      }
+      function updateHistoryButtons() {
+        document.getElementById("undoBtn").disabled = state.history.length === 0;
+        document.getElementById("redoBtn").disabled = state.future.length === 0;
+      }
+      function puzzleKnobPath(start, end, axis, dir, size) {
+        const mid = (start + end) / 2;
+        const neck = size * .58;
+        const round = size;
+        const step = end >= start ? 1 : -1;
+        if (axis === "h") {
+          const y = arguments[5];
+          return `L ${mid - step * neck} ${y} C ${mid - step * neck} ${y + dir * round * .22}, ${mid - step * round} ${y + dir * round * .36}, ${mid - step * round} ${y + dir * round * .72} C ${mid - step * round} ${y + dir * round * 1.2}, ${mid + step * round} ${y + dir * round * 1.2}, ${mid + step * round} ${y + dir * round * .72} C ${mid + step * round} ${y + dir * round * .36}, ${mid + step * neck} ${y + dir * round * .22}, ${mid + step * neck} ${y} L ${end} ${y}`;
+        }
+        const x = arguments[5];
+        return `L ${x} ${mid - step * neck} C ${x + dir * round * .22} ${mid - step * neck}, ${x + dir * round * .36} ${mid - step * round}, ${x + dir * round * .72} ${mid - step * round} C ${x + dir * round * 1.2} ${mid - step * round}, ${x + dir * round * 1.2} ${mid + step * round}, ${x + dir * round * .72} ${mid + step * round} C ${x + dir * round * .36} ${mid + step * round}, ${x + dir * round * .22} ${mid + step * neck}, ${x} ${mid + step * neck} L ${x} ${end}`;
+      }
+      function horizontalEdge(x1, x2, y, boundaryRow) {
+        if (boundaryRow === 0 || boundaryRow === ROWS) return `L ${x2} ${y}`;
+        const dir = boundaryRow % 2 === 1 ? -1 : 1;
+        return puzzleKnobPath(x1, x2, "h", dir, 48, y);
+      }
+      function verticalEdge(y1, y2, x, boundaryCol) {
+        if (boundaryCol === 0 || boundaryCol === COLS) return `L ${x} ${y2}`;
+        const dir = boundaryCol % 2 === 1 ? 1 : -1;
+        return puzzleKnobPath(y1, y2, "v", dir, 45, x);
+      }
+      function makeTiles() {
+        const tw = W / COLS, th = H / ROWS, tiles = [];
+        for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+          const x = c * tw, y = r * th, x2 = x + tw, y2 = y + th;
+          const path = [`M ${x} ${y}`, horizontalEdge(x, x2, y, r), verticalEdge(y, y2, x2, c + 1), horizontalEdge(x2, x, y2, r + 1), verticalEdge(y2, y, x, c), "Z"].join(" ");
+          tiles.push({ id: `tile-${r * COLS + c + 1}`, path, mode: "default" });
+        }
+        return tiles;
+      }
+      function makePuzzleLines() {
+        const tw = W / COLS, th = H / ROWS, lines = [];
+        lines.push(`M 0 0 H ${W} V ${H} H 0 Z`);
+        for (let c = 1; c < COLS; c++) {
+          const x = c * tw;
+          for (let r = 0; r < ROWS; r++) {
+            const y1 = r * th, y2 = y1 + th;
+            lines.push(`M ${x} ${y1} ${verticalEdge(y1, y2, x, c)}`);
+          }
+        }
+        for (let r = 1; r < ROWS; r++) {
+          const y = r * th;
+          for (let c = 0; c < COLS; c++) {
+            const x1 = c * tw, x2 = x1 + tw;
+            lines.push(`M ${x1} ${y} ${horizontalEdge(x1, x2, y, r)}`);
+          }
+        }
+        return lines;
+      }
+      function syncCanvasGeometry(resetTiles) {
+        if (!canvasPresets[state.canvasPreset]) state.canvasPreset = "landscape";
+        const preset = canvasPresets[state.canvasPreset];
+        W = preset.w;
+        H = preset.h;
+        COLS = preset.cols;
+        ROWS = preset.rows;
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+        document.getElementById("poster").style.aspectRatio = `${W} / ${H}`;
+        puzzleLines = makePuzzleLines();
+        if (resetTiles) state.tiles = makeTiles();
+      }
+      function renderRatioGrid() {
+        const grid = document.getElementById("ratioGrid");
+        grid.innerHTML = Object.entries(canvasPresets).map(([id, preset]) => `
+          <button class="ratio-button ${state.canvasPreset === id ? "active" : ""}" data-ratio="${id}">
+            ${preset.label}<span>${preset.note}</span>
+          </button>
+        `).join("");
+        document.querySelectorAll("[data-ratio]").forEach(button => {
+          button.onclick = () => {
+            if (state.canvasPreset === button.dataset.ratio) return;
+            saveHistory();
+            state.canvasPreset = button.dataset.ratio;
+            syncCanvasGeometry(true);
+            state.selectedTile = null;
+            state.selectedImage = null;
+            state.selectedText = null;
+            state.selectedSticker = null;
+            renderRatioGrid();
+            renderSide();
+            render();
+            setMsg(`畫布已切換為${canvasPresets[state.canvasPreset].label}。`);
+          };
+        });
+      }
+      syncCanvasGeometry(true);
+
+      function activeLayer() {
+        const s = state.selectedImage;
+        if (!s) return null;
+        if (s.kind === "base") return state.base;
+        const tile = state.tiles.find(t => t.id === s.tileId);
+        return tile && tile.image ? tile.image : null;
+      }
+      function imageNode(layer, clip, meta) {
+        const node = el("image", { href: layer.src, x: layer.x, y: layer.y, width: W * layer.scale, height: H * layer.scale, preserveAspectRatio: "xMidYMid slice", ...(clip ? { "clip-path": `url(#${clip})` } : {}) });
+        if (meta.kind === "cover") {
+          node.style.pointerEvents = "none";
+        } else {
+          node.style.cursor = "move";
+          node.onpointerdown = e => beginImageMove(e, meta);
+        }
+        return node;
+      }
+      function coverNode(tile) {
+        if (!state.cover) return null;
+        if (state.cover.type === "solid") {
+          return el("path", { d: tile.path, fill: state.cover.color || "#e7bef8", "pointer-events": "none" });
+        }
+        return imageNode(state.cover, `${tile.id}-clip`, { kind: "cover" });
+      }
+      function defs() {
+        const d = el("defs");
+        const filter = el("filter", { id: "pencil-line", x: "-6%", y: "-6%", width: "112%", height: "112%" });
+        filter.innerHTML = `<feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" seed="11" result="grain"/><feDisplacementMap in="SourceGraphic" in2="grain" scale="1.15" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation="0.18"/>`;
+        d.appendChild(filter);
+        state.tiles.forEach(t => d.appendChild(el("clipPath", { id: `${t.id}-clip` })).appendChild(el("path", { d: t.path })));
+        return d;
+      }
+      function render() {
+        svg.innerHTML = "";
+        svg.appendChild(defs());
+        svg.appendChild(el("rect", { width: W, height: H, fill: "#f8f6ef" }));
+        if (state.base) svg.appendChild(imageNode(state.base, null, { kind: "base" }));
+        else svg.appendChild(el("rect", { width: W, height: H, fill: "#ebe7dd" }));
+
+        state.tiles.forEach(t => {
+          if (t.mode === "default" && state.cover) svg.appendChild(coverNode(t));
+          if (t.mode === "revealBase") svg.appendChild(state.base ? imageNode(state.base, `${t.id}-clip`, { kind: "base" }) : el("path", { d: t.path, fill: "#ddd8cf" }));
+          if (t.mode === "colorFill") svg.appendChild(el("path", { d: t.path, fill: t.color || "#fff" }));
+          if (t.mode === "imageFill" && t.image) svg.appendChild(imageNode(t.image, `${t.id}-clip`, { kind: "tile", tileId: t.id }));
+        });
+
+        state.tiles.forEach(t => {
+          const p = el("path", { d: t.path, fill: "rgba(255,255,255,0.001)", stroke: "transparent", "stroke-width": 0, style: "cursor:pointer" });
+          p.onclick = e => {
+            e.stopPropagation();
+            if (e.detail > 1) return;
+            if (t.mode === "revealBase") {
+              saveHistory();
+              Object.assign(t, { mode: "default", image: null, color: null });
+              state.selectedTile = null;
+              setMsg("已恢復這一塊的覆蓋圖。");
+            } else {
+              state.selectedTile = state.selectedTile === t.id ? null : t.id;
+            }
+            state.selectedImage = null; state.selectedText = null; state.selectedSticker = null; renderSide(); render();
+          };
+          p.ondblclick = e => {
+            e.stopPropagation();
+            saveHistory();
+            Object.assign(t, { mode: "revealBase", image: null, color: null });
+            state.selectedTile = null;
+            state.selectedImage = null;
+            setMsg("已擦除這一塊的覆蓋圖。單擊該拼圖塊可取消擦除。");
+            renderSide(); render();
+          };
+          svg.appendChild(p);
+        });
+        puzzleLines.forEach(d => {
+          [
+            { w: 4.2, o: .13, dx: -.75, dy: .45 },
+            { w: 2.6, o: .20, dx: .7, dy: -.35 },
+            { w: 1.45, o: .34, dx: 0, dy: 0 },
+            { w: .75, o: .18, dx: 1.25, dy: .85 }
+          ].forEach(stroke => {
+            svg.appendChild(el("path", { d, transform: `translate(${stroke.dx} ${stroke.dy})`, fill: "none", stroke: state.lineColor, "stroke-width": stroke.w, "stroke-opacity": state.lineOpacity * stroke.o, "stroke-linecap": "round", "stroke-linejoin": "round", "filter": "url(#pencil-line)", "pointer-events": "none" }));
+          });
+        });
+
+        const t = state.tiles.find(x => x.id === state.selectedTile);
+        if (t) svg.appendChild(el("path", { d: t.path, fill: "rgba(255,255,255,.18)", stroke: "#151515", "stroke-width": 6, "stroke-linejoin": "round", "pointer-events": "none" }));
+
+        state.texts.forEach(item => {
+          const box = textBox(item);
+          const rotation = item.rotation || 0;
+          const scale = item.scale || 1;
+          const g = el("g", { transform: `translate(${item.x} ${item.y}) rotate(${rotation}) scale(${scale}) translate(${-box.w / 2} ${-box.h / 2})`, style: "cursor:move" });
+          const hitArea = el("rect", { x: 0, y: 0, width: box.w, height: box.h, fill: "rgba(255,255,255,0.001)", style: "cursor:move" });
+          hitArea.onpointerdown = e => beginObjectMove(e, "text", item.id, item.x, item.y);
+          g.appendChild(hitArea);
+          const n = el("text", { x: box.pad, y: box.pad + item.fontSize, fill: item.color, "font-size": item.fontSize, "font-family": item.fontFamily || "TPearl", "font-weight": 900, "pointer-events": "none" });
+          n.textContent = item.content;
+          g.appendChild(n);
+          if (state.selectedText === item.id) {
+            addSelectionControls(g, box.w, box.h, {
+              onScale: (e, corner) => beginTextScale(e, item.id, corner),
+              onRotate: e => beginTextRotate(e, item.id),
+              onDelete: e => {
+                e.stopPropagation();
+                saveHistory();
+                state.texts = state.texts.filter(text => text.id !== item.id);
+                state.selectedText = null;
+                renderSide();
+                render();
+              }
+            });
+          }
+          svg.appendChild(g);
+        });
+        state.stickers.forEach(item => {
+          const rotation = item.rotation || 0;
+          const g = el("g", { transform: `translate(${item.x} ${item.y}) rotate(${rotation}) scale(${item.scale}) translate(${-item.w / 2} ${-item.h / 2})`, style: "cursor:move" });
+          const hitArea = el("rect", { x: 0, y: 0, width: item.w, height: item.h, fill: "rgba(255,255,255,0.001)", style: "cursor:move" });
+          hitArea.onpointerdown = e => beginObjectMove(e, "sticker", item.id, item.x, item.y);
+          g.appendChild(hitArea);
+          g.appendChild(el("image", { href: item.src, x: 0, y: 0, width: item.w, height: item.h, preserveAspectRatio: "xMidYMid meet", "pointer-events": "none" }));
+          if (state.selectedSticker === item.id) {
+            addSelectionControls(g, item.w, item.h, {
+              onScale: (e, corner) => beginStickerScale(e, item.id, corner),
+              onRotate: e => beginStickerRotate(e, item.id),
+              onDelete: e => {
+                e.stopPropagation();
+                saveHistory();
+                state.stickers = state.stickers.filter(sticker => sticker.id !== item.id);
+                state.selectedSticker = null;
+                renderSide();
+                render();
+              }
+            });
+          }
+          svg.appendChild(g);
+        });
+        renderImageBox();
+      }
+      svg.onclick = e => {
+        if (e.target !== svg) return;
+        state.selectedImage = null;
+        state.selectedTile = null;
+        state.selectedText = null;
+        state.selectedSticker = null;
+        setMsg("已完成目前調整。");
+        renderSide();
+        render();
+      };
+      function renderImageBox() {
+        const layer = activeLayer();
+        if (!layer) return;
+        const box = { x: layer.x, y: layer.y, w: W * layer.scale, h: H * layer.scale };
+        const g = el("g", { "pointer-events": "all" });
+        const moveRect = el("rect", { x: box.x, y: box.y, width: box.w, height: box.h, fill: "rgba(255,255,255,0.001)", stroke: "#151515", "stroke-width": 4, "stroke-dasharray": "16 10", style: "cursor:move" });
+        moveRect.onpointerdown = e => beginImageMove(e, state.selectedImage);
+        g.appendChild(moveRect);
+        [["nw", box.x, box.y], ["ne", box.x + box.w, box.y], ["sw", box.x, box.y + box.h], ["se", box.x + box.w, box.y + box.h]].forEach(([corner, x, y]) => {
+          const h = el("rect", { x: x - 14, y: y - 14, width: 28, height: 28, rx: 4, fill: "#fff", stroke: "#151515", "stroke-width": 4, style: "cursor:nwse-resize" });
+          h.onpointerdown = e => beginImageScale(e, corner);
+          g.appendChild(h);
+        });
+        svg.appendChild(g);
+      }
+      function textBox(item) {
+        const pad = 18;
+        const contentLength = Math.max(1, item.content.length);
+        return {
+          pad,
+          w: Math.max(170, contentLength * item.fontSize * .76 + pad * 2),
+          h: item.fontSize * 1.28 + pad * 2
+        };
+      }
+      function addSelectionControls(g, width, height, handlers) {
+        g.appendChild(el("rect", { x: -10, y: -10, width: width + 20, height: height + 20, rx: 8, fill: "transparent", stroke: "#163f73", "stroke-width": 5, "stroke-linecap": "round", "stroke-dasharray": "18 11", "pointer-events": "none" }));
+        [
+          ["nw", -10, -10], ["ne", width + 10, -10], ["sw", -10, height + 10], ["se", width + 10, height + 10]
+        ].forEach(([corner, x, y]) => {
+          const handle = el("rect", { x: x - 13, y: y - 13, width: 26, height: 26, rx: 5, fill: "#ffffff", stroke: "#163f73", "stroke-width": 5, style: "cursor:nwse-resize" });
+          handle.onpointerdown = e => handlers.onScale(e, corner);
+          g.appendChild(handle);
+        });
+        const deleteButton = el("g", { transform: `translate(${width + 42} -38)`, style: "cursor:pointer" });
+        deleteButton.innerHTML = `<circle cx="0" cy="0" r="20" fill="#ffffff" stroke="#163f73" stroke-width="5"/><path d="M-7 -7 L7 7 M7 -7 L-7 7" stroke="#163f73" stroke-width="5" stroke-linecap="round"/>`;
+        deleteButton.onpointerdown = handlers.onDelete;
+        g.appendChild(deleteButton);
+        const rotateButton = el("g", { transform: `translate(${width / 2} ${height + 74})`, style: "cursor:grab" });
+        rotateButton.innerHTML = `<line x1="0" y1="-50" x2="0" y2="-22" stroke="#163f73" stroke-width="5" stroke-linecap="round"/><circle cx="0" cy="0" r="23" fill="#ffffff" stroke="#163f73" stroke-width="5"/><path d="M-8 7 A13 13 0 1 1 8 7" fill="none" stroke="#163f73" stroke-width="4.5" stroke-linecap="round"/><path d="M8 7 L8 -5 L18 2" fill="none" stroke="#163f73" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+        rotateButton.onpointerdown = handlers.onRotate;
+        g.appendChild(rotateButton);
+      }
+      function point(e) {
+        const p = svg.createSVGPoint();
+        p.x = e.clientX; p.y = e.clientY;
+        return p.matrixTransform(svg.getScreenCTM().inverse());
+      }
+      function beginImageMove(e, meta) {
+        e.stopPropagation();
+        const layer = meta.kind === "base" ? state.base : state.tiles.find(t => t.id === meta.tileId).image;
+        const p = point(e);
+        saveHistory();
+        state.selectedImage = meta;
+        state.selectedTile = null;
+        state.drag = { type: "imageMove", layer, dx: p.x - layer.x, dy: p.y - layer.y };
+        setMsg("拖動圖片移動；拉四角選中框縮放。");
+        renderSide(); render();
+      }
+      function beginImageScale(e, corner) {
+        e.stopPropagation();
+        const layer = activeLayer();
+        if (!layer) return;
+        const p = point(e);
+        saveHistory();
+        state.drag = { type: "imageScale", layer, corner, startX: p.x, startY: p.y, x: layer.x, y: layer.y, scale: layer.scale };
+      }
+      function beginObjectMove(e, type, id, x, y) {
+        e.stopPropagation();
+        const p = point(e);
+        saveHistory();
+        state.selectedImage = null; state.selectedTile = null;
+        state.selectedText = type === "text" ? id : null;
+        state.selectedSticker = type === "sticker" ? id : null;
+        state.drag = { type, id, dx: p.x - x, dy: p.y - y };
+        renderSide(); render();
+      }
+      function beginStickerScale(e, id, corner) {
+        e.stopPropagation();
+        const item = state.stickers.find(sticker => sticker.id === id);
+        if (!item) return;
+        saveHistory();
+        const p = point(e);
+        const startDistance = Math.hypot(p.x - item.x, p.y - item.y) || 1;
+        state.selectedSticker = id;
+        state.selectedImage = null;
+        state.selectedText = null;
+        state.selectedTile = null;
+        state.drag = { type: "stickerScale", id, corner, startDistance, startScale: item.scale };
+        renderSide();
+        render();
+      }
+      function beginStickerRotate(e, id) {
+        e.stopPropagation();
+        const item = state.stickers.find(sticker => sticker.id === id);
+        if (!item) return;
+        saveHistory();
+        const p = point(e);
+        const startAngle = Math.atan2(p.y - item.y, p.x - item.x) * 180 / Math.PI;
+        state.selectedSticker = id;
+        state.selectedImage = null;
+        state.selectedText = null;
+        state.selectedTile = null;
+        state.drag = { type: "stickerRotate", id, startAngle, startRotation: item.rotation || 0 };
+        renderSide();
+        render();
+      }
+      function beginTextScale(e, id, corner) {
+        e.stopPropagation();
+        const item = state.texts.find(text => text.id === id);
+        if (!item) return;
+        saveHistory();
+        const p = point(e);
+        const startDistance = Math.hypot(p.x - item.x, p.y - item.y) || 1;
+        state.selectedText = id;
+        state.selectedImage = null;
+        state.selectedSticker = null;
+        state.selectedTile = null;
+        state.drag = { type: "textScale", id, corner, startDistance, startScale: item.scale || 1 };
+        renderSide();
+        render();
+      }
+      function beginTextRotate(e, id) {
+        e.stopPropagation();
+        const item = state.texts.find(text => text.id === id);
+        if (!item) return;
+        saveHistory();
+        const p = point(e);
+        const startAngle = Math.atan2(p.y - item.y, p.x - item.x) * 180 / Math.PI;
+        state.selectedText = id;
+        state.selectedImage = null;
+        state.selectedSticker = null;
+        state.selectedTile = null;
+        state.drag = { type: "textRotate", id, startAngle, startRotation: item.rotation || 0 };
+        renderSide();
+        render();
+      }
+      svg.onpointermove = e => {
+        if (!state.drag) return;
+        const p = point(e), d = state.drag;
+        if (d.type === "imageMove") { d.layer.x = p.x - d.dx; d.layer.y = p.y - d.dy; render(); return; }
+        if (d.type === "imageScale") {
+          const delta = Math.max(Math.abs(p.x - d.startX), Math.abs(p.y - d.startY));
+          const sign = (d.corner === "se" || d.corner === "ne") ? Math.sign(p.x - d.startX) : -Math.sign(p.x - d.startX);
+          const next = Math.max(.45, Math.min(2.8, d.scale + sign * delta / 850));
+          const oldW = W * d.scale, oldH = H * d.scale, newW = W * next, newH = H * next;
+          d.layer.scale = next;
+          if (d.corner.includes("n")) d.layer.y = d.y + (oldH - newH);
+          if (d.corner.includes("w")) d.layer.x = d.x + (oldW - newW);
+          render(); return;
+        }
+        if (d.type === "stickerScale") {
+          const item = state.stickers.find(x => x.id === d.id);
+          if (!item) return;
+          const distance = Math.hypot(p.x - item.x, p.y - item.y);
+          item.scale = Math.max(.18, Math.min(4.2, d.startScale * distance / d.startDistance));
+          render(); return;
+        }
+        if (d.type === "stickerRotate") {
+          const item = state.stickers.find(x => x.id === d.id);
+          if (!item) return;
+          const angle = Math.atan2(p.y - item.y, p.x - item.x) * 180 / Math.PI;
+          item.rotation = d.startRotation + angle - d.startAngle;
+          render(); return;
+        }
+        if (d.type === "textScale") {
+          const item = state.texts.find(x => x.id === d.id);
+          if (!item) return;
+          const distance = Math.hypot(p.x - item.x, p.y - item.y);
+          item.scale = Math.max(.25, Math.min(4.2, d.startScale * distance / d.startDistance));
+          render(); return;
+        }
+        if (d.type === "textRotate") {
+          const item = state.texts.find(x => x.id === d.id);
+          if (!item) return;
+          const angle = Math.atan2(p.y - item.y, p.x - item.x) * 180 / Math.PI;
+          item.rotation = d.startRotation + angle - d.startAngle;
+          render(); return;
+        }
+        const list = d.type === "text" ? state.texts : state.stickers;
+        const item = list.find(x => x.id === d.id);
+        if (item) { item.x = p.x - d.dx; item.y = p.y - d.dy; render(); }
+      };
+      svg.onpointerup = () => state.drag = null;
+      svg.onpointerleave = () => state.drag = null;
+      document.querySelector(".stage").onclick = e => {
+        if (document.getElementById("poster").contains(e.target)) return;
+        state.selectedImage = null;
+        state.selectedTile = null;
+        state.selectedText = null;
+        state.selectedSticker = null;
+        setMsg("已完成目前調整。");
+        renderSide();
+        render();
+      };
+      document.addEventListener("click", e => {
+        if (!e.target.closest || e.target.closest(".font-picker")) return;
+        document.querySelectorAll(".font-picker.open").forEach(picker => picker.classList.remove("open"));
+      });
+
+      function renderSide() {
+        const side = document.getElementById("sidePanel");
+        const layer = activeLayer();
+        if (layer) {
+          side.className = "stack";
+          side.innerHTML = `<div class="mini-preview"><img src="${layer.src}"></div><div class="empty">目前選中：${state.selectedImage.kind === "base" ? "底片" : "拼圖塊圖片"}<br>直接拖動畫布內圖片移動，拖四角控制點縮放。</div>`;
+          return;
+        }
+        const textItem = state.texts.find(t => t.id === state.selectedText);
+        if (textItem) {
+          side.className = "stack";
+          side.innerHTML = `<div class="empty">目前選中：文字框</div>
+            <div class="panel stack">
+              <p class="panel-title">文字內容</p>
+              <input id="textContent" type="text" value="${escapeHtml(textItem.content)}">
+              <label class="hint">字體風格</label>
+              <div class="font-picker" id="fontPicker">
+                <button type="button" class="font-current" id="fontCurrent" style="font-family:'${textItem.fontFamily || "TPearl"}'">${fontLabel(textItem.fontFamily || "TPearl")}</button>
+                <div class="font-menu" id="fontMenu">
+                  ${fontOptions.map(([value, label]) => `<button type="button" class="font-option ${textItem.fontFamily === value ? "active" : ""}" data-font="${value}" style="font-family:'${value}'">${label}</button>`).join("")}
+                </div>
+              </div>
+              <label class="hint">文字大小</label>
+              <input id="fontSize" type="range" min="24" max="180" step="2" value="${textItem.fontSize}">
+              <label class="hint">文字顏色</label>
+              <input id="textColor" type="color" value="${textItem.color}">
+            </div>
+            <button id="deleteText" class="ghost">刪除文字</button>`;
+          document.getElementById("textContent").oninput = e => { textItem.content = e.target.value || " "; render(); };
+          document.getElementById("textContent").onfocus = () => saveHistory();
+          document.getElementById("fontCurrent").onclick = e => {
+            e.stopPropagation();
+            document.getElementById("fontPicker").classList.toggle("open");
+          };
+          document.querySelectorAll("[data-font]").forEach(button => {
+            button.onclick = e => {
+              e.stopPropagation();
+              saveHistory();
+              textItem.fontFamily = button.dataset.font;
+              renderSide();
+              render();
+            };
+          });
+          document.getElementById("fontSize").onpointerdown = () => saveHistory();
+          document.getElementById("fontSize").oninput = e => { textItem.fontSize = Number(e.target.value); render(); };
+          document.getElementById("textColor").onchange = e => { saveHistory(); textItem.color = e.target.value; render(); };
+        document.getElementById("deleteText").onclick = () => { saveHistory(); state.texts = state.texts.filter(t => t.id !== textItem.id); state.selectedText = null; renderSide(); render(); };
+          return;
+        }
+        const stickerItem = state.stickers.find(t => t.id === state.selectedSticker);
+        if (stickerItem) {
+          side.className = "stack";
+          side.innerHTML = `<div class="mini-preview"><img src="${stickerItem.src}"></div>
+            <div class="panel stack">
+              <p class="panel-title">貼紙</p>
+              <p class="hint">拖動貼紙可移動；拉四角可縮放；下方圓形按鈕可旋轉；右上角可刪除。</p>
+              <input id="stickerScale" type="range" min=".35" max="3.2" step=".05" value="${stickerItem.scale}">
+            </div>
+            <button id="deleteSticker" class="ghost">刪除貼紙</button>`;
+          document.getElementById("stickerScale").onpointerdown = () => saveHistory();
+          document.getElementById("stickerScale").oninput = e => { stickerItem.scale = Number(e.target.value); render(); };
+          document.getElementById("deleteSticker").onclick = () => { saveHistory(); state.stickers = state.stickers.filter(t => t.id !== stickerItem.id); state.selectedSticker = null; renderSide(); render(); };
+          return;
+        }
+        if (state.cover && state.cover.type === "solid") {
+          side.className = "stack";
+          side.innerHTML = `<div class="empty">目前選中：純色覆蓋圖層<br>這個顏色會覆蓋在尚未單獨編輯的拼圖塊上。</div>
+            <div class="panel">
+              <p class="panel-title">覆蓋圖層顏色</p>
+              <div class="color-picker-row"><input id="coverSolidColor" type="color" value="${state.cover.color || "#e7bef8"}"><button class="primary color-apply" id="applyCoverSolid">套用顏色</button></div>
+              <p class="hint">點擊左側色盤開啟完整顏色選擇器。</p>
+              <div class="grid4" id="coverSolidColors" style="margin-top:10px"></div>
+            </div>`;
+          document.getElementById("applyCoverSolid").onclick = () => { saveHistory(); state.cover.color = document.getElementById("coverSolidColor").value; renderCoverGrid(); render(); };
+          document.getElementById("coverSolidColor").onchange = e => { saveHistory(); state.cover.color = e.target.value; renderCoverGrid(); render(); };
+          document.getElementById("coverSolidColors").innerHTML = colors.map(c => `<button class="swatch" data-cover-color="${c}" style="background:${c}"></button>`).join("");
+          document.querySelectorAll("[data-cover-color]").forEach(b => b.onclick = () => {
+            saveHistory();
+            document.getElementById("coverSolidColor").value = b.dataset.coverColor;
+            state.cover.color = b.dataset.coverColor;
+            renderCoverGrid();
+            render();
+          });
+          return;
+        }
+        const tile = state.tiles.find(t => t.id === state.selectedTile);
+        if (!tile) { side.className = "empty"; side.innerHTML = "點擊拼圖塊或畫布內的圖片開始編輯。"; return; }
+        side.className = "stack";
+        side.innerHTML = `<div class="empty">已選擇 ${tile.id.replace("tile-", "第 ")} 塊<br>目前狀態：${tile.mode}</div>
+          <button class="tool primary" id="reveal">擦掉覆蓋圖</button>
+          <p class="hint">雙擊拼圖塊🧩顯示底片✨</p>
+          <button class="tool primary" id="insert">插入圖片</button>
+          <div class="panel"><p class="panel-title">填充顏色</p><div class="color-picker-row"><input id="customColor" type="color" value="${tile.color || "#ff8fab"}"><button class="primary color-apply" id="applyColor">套用顏色</button></div><p class="hint">點擊左側色盤開啟完整顏色選擇器。</p><div class="grid4" id="colors" style="margin-top:10px"></div></div>
+          <button id="clearTile">清除這一塊</button>`;
+        document.getElementById("reveal").onclick = () => { saveHistory(); Object.assign(tile, { mode: "revealBase", image: null, color: null }); setMsg("已擦除這一塊的覆蓋圖。單擊該拼圖塊可取消擦除。"); render(); renderSide(); };
+        document.getElementById("insert").onclick = () => document.getElementById("tileImageInput").click();
+        document.getElementById("clearTile").onclick = () => { saveHistory(); Object.assign(tile, { mode: "default", image: null, color: null }); render(); renderSide(); };
+        document.getElementById("applyColor").onclick = () => { saveHistory(); Object.assign(tile, { mode: "colorFill", color: document.getElementById("customColor").value, image: null }); render(); };
+        document.getElementById("customColor").onchange = e => { saveHistory(); Object.assign(tile, { mode: "colorFill", color: e.target.value, image: null }); render(); };
+        document.getElementById("colors").innerHTML = colors.map(c => `<button class="swatch" data-color="${c}" style="background:${c}"></button>`).join("");
+        document.querySelectorAll("[data-color]").forEach(b => b.onclick = () => {
+          saveHistory();
+          document.getElementById("customColor").value = b.dataset.color;
+          Object.assign(tile, { mode: "colorFill", color: b.dataset.color, image: null });
+          render();
+        });
+      }
+      function escapeHtml(value) {
+        return String(value).replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+      }
+      function fontLabel(value) {
+        const option = fontOptions.find(([font]) => font === value);
+        return option ? option[1] : "TPearl";
+      }
+      function readFile(file, cb) {
+        if (!file || !/^image\/(jpeg|jpg|png|webp)$/.test(file.type)) { setMsg("暫時只支援 JPG、PNG、WEBP 格式。"); return; }
+        const r = new FileReader();
+        r.onload = () => cb(String(r.result));
+        r.onerror = () => setMsg("圖片上傳失敗，請重新選擇。");
+        r.readAsDataURL(file);
+      }
+      function createStickerLibrary() {
+        const img = new Image();
+        img.onload = () => {
+          stickerLibrary = stickerCrops.map(crop => {
+            const canvas = document.createElement("canvas");
+            const pad = 18;
+            canvas.width = crop.w + pad * 2;
+            canvas.height = crop.h + pad * 2;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, crop.x, crop.y, crop.w, crop.h, pad, pad, crop.w, crop.h);
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < data.data.length; i += 4) {
+              const r = data.data[i], g = data.data[i + 1], b = data.data[i + 2];
+              const whiteness = (r + g + b) / 3;
+              if (whiteness > 242 && Math.max(r, g, b) - Math.min(r, g, b) < 18) {
+                data.data[i + 3] = 0;
+              }
+            }
+            ctx.putImageData(data, 0, 0);
+            return { id: crop.id, src: canvas.toDataURL("image/png"), w: canvas.width, h: canvas.height };
+          });
+          renderStickerGrid();
+        };
+        img.src = "sticker-assets/sticker-sheet.png";
+      }
+      function renderStickerGrid() {
+        const grid = document.getElementById("stickers");
+        if (!stickerLibrary.length) {
+          grid.innerHTML = `<div class="hint">貼紙載入中...</div>`;
+          return;
+        }
+        grid.innerHTML = stickerLibrary.map(item => `<button class="sticker-tile" data-sticker="${item.id}"><img src="${item.src}" alt=""></button>`).join("");
+        document.querySelectorAll("[data-sticker]").forEach(b => b.onclick = () => {
+          const sticker = stickerLibrary.find(item => item.id === b.dataset.sticker);
+          if (!sticker) return;
+          saveHistory();
+          const item = { id: uid("sticker"), src: sticker.src, x: W * .68, y: H * .24, w: sticker.w * .38, h: sticker.h * .38, scale: 1, rotation: 0 };
+          state.stickers.push(item);
+          state.selectedSticker = item.id;
+          state.selectedImage = null;
+          state.selectedText = null;
+          state.selectedTile = null;
+          renderSide();
+          render();
+        });
+      }
+      function renderCoverGrid() {
+        const grid = document.getElementById("coverGrid");
+        grid.innerHTML = `<button class="cover-tile off ${!state.cover ? "active" : ""}" data-cover-off>無覆蓋</button><button class="cover-tile solid ${state.cover && state.cover.type === "solid" ? "active" : ""}" data-cover-solid>純色</button>` + coverAssets.map(src => `<button class="cover-tile ${state.cover && state.cover.src === src ? "active" : ""}" data-cover="${src}"><img src="${src}" alt=""></button>`).join("");
+        document.querySelector("[data-cover-off]").onclick = () => {
+          saveHistory();
+          state.cover = null;
+          state.selectedImage = null;
+          state.selectedTile = null;
+          setMsg("覆蓋圖層已關閉。現在只顯示底片和拼圖線條。");
+          renderCoverGrid(); renderSide(); render();
+        };
+        document.querySelector("[data-cover-solid]").onclick = () => {
+          saveHistory();
+          if (state.cover && state.cover.type === "solid") {
+            state.cover = null;
+            setMsg("純色覆蓋圖層已關閉。");
+          } else {
+            state.cover = { type: "solid", color: state.cover && state.cover.color ? state.cover.color : "#e7bef8" };
+            setMsg("已開啟純色覆蓋圖層。可在右側欄自訂顏色。");
+          }
+          state.selectedImage = null;
+          state.selectedTile = null;
+          state.selectedText = null;
+          state.selectedSticker = null;
+          renderCoverGrid(); renderSide(); render();
+        };
+        document.querySelectorAll("[data-cover]").forEach(b => b.onclick = () => {
+          saveHistory();
+          if (state.cover && state.cover.src === b.dataset.cover) {
+            state.cover = null;
+            setMsg("覆蓋圖層已關閉。");
+          } else {
+            state.cover = { type: "image", src: b.dataset.cover, x: 0, y: 0, scale: 1 };
+            setMsg("已開啟覆蓋圖層。再次點擊當前縮圖可關閉。");
+          }
+          state.selectedImage = null;
+          state.selectedTile = null;
+          renderCoverGrid(); renderSide(); render();
+        });
+      }
+      document.getElementById("baseInput").onchange = e => readFile(e.target.files[0], src => {
+        saveHistory();
+        state.base = { src, x: 0, y: 0, scale: 1 };
+        state.selectedImage = { kind: "base" };
+        e.target.value = "";
+        setMsg("底片已更新。直接在畫布中調整它。");
+        renderSide(); render();
+      });
+      document.getElementById("coverInput").onchange = e => readFile(e.target.files[0], src => {
+        saveHistory();
+        state.cover = { type: "image", src, x: 0, y: 0, scale: 1 };
+        state.selectedImage = null;
+        setMsg("自訂覆蓋圖層已上傳並開啟。");
+        renderCoverGrid(); renderSide(); render();
+      });
+      document.getElementById("tileImageInput").onchange = e => readFile(e.target.files[0], src => {
+        const tile = state.tiles.find(t => t.id === state.selectedTile);
+        if (!tile) return;
+        saveHistory();
+        tile.mode = "imageFill";
+        tile.image = { src, x: 0, y: 0, scale: 1.05 };
+        state.selectedImage = { kind: "tile", tileId: tile.id };
+        state.selectedTile = null;
+        setMsg("拼圖塊圖片已插入。直接拖動和拉四角縮放。");
+        renderSide(); render();
+      });
+      document.getElementById("lineOpacity").oninput = e => { state.lineOpacity = Number(e.target.value); render(); };
+      document.querySelectorAll("[data-line]").forEach(b => b.onclick = () => { saveHistory(); state.lineColor = b.dataset.line; render(); });
+      document.getElementById("addText").onclick = () => {
+        saveHistory();
+        const item = { id: uid("text"), content: "添加文本", x: W / 2, y: H * .82, fontSize: 66, color: "#151515", fontFamily: "TPearl", scale: 1, rotation: 0 };
+        state.texts.push(item); state.selectedText = item.id; state.selectedImage = null; renderSide(); render();
+      };
+      document.getElementById("resetBtn").onclick = () => {
+        saveHistory();
+        syncCanvasGeometry(true); state.texts = []; state.stickers = []; state.selectedTile = null; state.selectedImage = null; state.selectedText = null; state.selectedSticker = null; state.cover = null;
+        setMsg("已重置局部編輯，並關閉覆蓋圖層。"); renderCoverGrid(); renderSide(); render();
+      };
+      document.getElementById("undoBtn").onclick = () => {
+        const snapshot = state.history.pop();
+        if (!snapshot) return;
+        state.future.push(cloneProject());
+        restoreProject(snapshot);
+        setMsg("已撤銷。");
+      };
+      document.getElementById("redoBtn").onclick = () => {
+        const snapshot = state.future.pop();
+        if (!snapshot) return;
+        state.history.push(cloneProject());
+        restoreProject(snapshot);
+        setMsg("已恢復。");
+      };
+      document.getElementById("exportBtn").onclick = async () => {
+        const prevImage = state.selectedImage, prevTile = state.selectedTile;
+        state.selectedImage = null; state.selectedTile = null; render();
+        const xml = new XMLSerializer().serializeToString(svg);
+        const img = new Image();
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
+        await new Promise(resolve => img.onload = resolve);
+        const canvas = document.createElement("canvas");
+        canvas.width = W; canvas.height = H;
+        canvas.getContext("2d").drawImage(img, 0, 0);
+        const a = document.createElement("a");
+        a.download = "puzzle-poster.png";
+        a.href = canvas.toDataURL("image/png");
+        a.click();
+        state.selectedImage = prevImage; state.selectedTile = prevTile; render();
+      };
+      renderCoverGrid();
+      renderRatioGrid();
+      renderStickerGrid();
+      createStickerLibrary();
+      renderSide();
+      render();
+    </script>
+  </body>
+</html>
