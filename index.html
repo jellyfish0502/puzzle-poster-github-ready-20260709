@@ -164,11 +164,24 @@
       .color-picker-row { display: grid; grid-template-columns: 1fr 80px; gap: 10px; align-items: stretch; }
       .color-apply { height: 96px; }
       @media (max-width: 980px) {
-        main { display: block; }
-        aside { max-height: none; margin-bottom: 16px; }
+        body::before { opacity: .18; background-size: 220px 170px; }
+        main { display: flex; flex-direction: column; gap: 14px; padding: 10px; }
+        aside { max-height: none; margin-bottom: 0; padding: 12px; box-shadow: 4px 4px 0 rgba(36,33,31,.55); }
+        aside:first-child { order: 2; }
+        aside:last-child { order: 3; }
         aside:first-child, aside:last-child { border: 2px solid var(--line); }
-        .stage { min-height: 68vh; padding: 14px; margin-bottom: 16px; }
-        .stage::before, .stage::after { opacity: .25; transform: scale(.75); transform-origin: center; }
+        .stage { order: 1; min-height: auto; padding: 10px; margin-bottom: 0; box-shadow: 4px 4px 0 rgba(36,33,31,.55); }
+        .stage::before, .stage::after { opacity: .16; transform: scale(.65); transform-origin: center; }
+        .topbar { align-items: flex-start; flex-direction: column; gap: 10px; margin-bottom: 10px; padding: 9px; }
+        .topbar .row { width: 100%; flex-wrap: wrap; }
+        .topbar .row button:not(.icon-button) { flex: 1 1 96px; }
+        .canvas-wrap { padding: 4px; }
+        #poster { width: 100%; box-shadow: 5px 5px 0 rgba(36,33,31,.78), 0 16px 38px rgba(52, 64, 90, .12); }
+        h1 { font-size: 24px; margin-bottom: 12px; }
+        .panel { margin-bottom: 10px; padding: 10px; }
+        .cover-grid { grid-template-columns: repeat(4, 1fr); }
+        .cover-tile { height: 58px; }
+        .sticker-tile { height: 48px; }
       }
     </style>
   </head>
@@ -292,12 +305,15 @@
         cover: null,
         selectedImage: null,
         selectedTile: null,
+        selectedTiles: [],
         selectedText: null,
         selectedSticker: null,
+        multiSelectMode: false,
         canvasPreset: "landscape",
         lineOpacity: .72,
         lineColor: "#d4d0cc",
         tiles: [],
+        imageGroups: [],
         texts: [],
         stickers: [],
         history: [],
@@ -318,19 +334,24 @@
           cover: state.cover,
           selectedImage: state.selectedImage,
           selectedTile: state.selectedTile,
+          selectedTiles: state.selectedTiles,
           selectedText: state.selectedText,
           selectedSticker: state.selectedSticker,
+          multiSelectMode: state.multiSelectMode,
           canvasPreset: state.canvasPreset,
           lineOpacity: state.lineOpacity,
           lineColor: state.lineColor,
           tiles: state.tiles,
+          imageGroups: state.imageGroups,
           texts: state.texts,
           stickers: state.stickers
         }));
       }
       function restoreProject(snapshot) {
         Object.assign(state, JSON.parse(JSON.stringify(snapshot)), { drag: null });
+        if (!Array.isArray(state.imageGroups)) state.imageGroups = [];
         syncCanvasGeometry(false);
+        normalizeTileSelection();
         renderCoverGrid();
         renderRatioGrid();
         renderSide();
@@ -342,6 +363,64 @@
         if (state.history.length > 60) state.history.shift();
         state.future = [];
         updateHistoryButtons();
+      }
+      function clearSelection() {
+        state.selectedImage = null;
+        state.selectedTile = null;
+        state.selectedTiles = [];
+        state.selectedText = null;
+        state.selectedSticker = null;
+        state.multiSelectMode = false;
+      }
+      function normalizeTileSelection() {
+        state.selectedTiles = [...new Set((state.selectedTiles || []).filter(id => state.tiles.some(t => t.id === id)))];
+        if (state.selectedTile && !state.selectedTiles.includes(state.selectedTile)) state.selectedTiles.unshift(state.selectedTile);
+        if (!state.selectedTile && state.selectedTiles.length) state.selectedTile = state.selectedTiles[0];
+        if (!state.selectedTiles.length) {
+          state.selectedTile = null;
+          state.multiSelectMode = false;
+        }
+      }
+      function selectedTileIds() {
+        normalizeTileSelection();
+        return state.selectedTiles.length ? state.selectedTiles : (state.selectedTile ? [state.selectedTile] : []);
+      }
+      function selectedTileObjects() {
+        const ids = selectedTileIds();
+        return ids.map(id => state.tiles.find(t => t.id === id)).filter(Boolean);
+      }
+      function applyToSelectedTiles(updater) {
+        selectedTileObjects().forEach(updater);
+        pruneImageGroups();
+      }
+      function resetNonTileSelection() {
+        state.selectedImage = null;
+        state.selectedText = null;
+        state.selectedSticker = null;
+      }
+      function imageGroup(id) {
+        return state.imageGroups.find(group => group.id === id);
+      }
+      function pruneImageGroups() {
+        state.imageGroups = state.imageGroups.filter(group => {
+          group.tileIds = group.tileIds.filter(id => {
+            const tile = state.tiles.find(t => t.id === id);
+            return tile && tile.mode === "imageGroup" && tile.imageGroupId === group.id;
+          });
+          return group.tileIds.length > 0;
+        });
+      }
+      function clearTilesFromImageGroups(tileIds) {
+        const ids = new Set(tileIds);
+        state.tiles.forEach(tile => {
+          if (ids.has(tile.id) && tile.imageGroupId) {
+            delete tile.imageGroupId;
+          }
+        });
+        state.imageGroups.forEach(group => {
+          group.tileIds = group.tileIds.filter(id => !ids.has(id));
+        });
+        pruneImageGroups();
       }
       function updateHistoryButtons() {
         document.getElementById("undoBtn").disabled = state.history.length === 0;
@@ -407,7 +486,13 @@
         svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
         document.getElementById("poster").style.aspectRatio = `${W} / ${H}`;
         puzzleLines = makePuzzleLines();
-        if (resetTiles) state.tiles = makeTiles();
+        if (resetTiles) {
+          state.tiles = makeTiles();
+          state.imageGroups = [];
+        }
+      }
+      function isCompactViewport() {
+        return window.matchMedia && window.matchMedia("(max-width: 980px)").matches;
       }
       function renderRatioGrid() {
         const grid = document.getElementById("ratioGrid");
@@ -423,6 +508,8 @@
             state.canvasPreset = button.dataset.ratio;
             syncCanvasGeometry(true);
             state.selectedTile = null;
+            state.selectedTiles = [];
+            state.multiSelectMode = false;
             state.selectedImage = null;
             state.selectedText = null;
             state.selectedSticker = null;
@@ -439,12 +526,16 @@
         const s = state.selectedImage;
         if (!s) return null;
         if (s.kind === "base") return state.base;
+        if (s.kind === "tileGroup") {
+          const group = imageGroup(s.groupId);
+          return group ? group.image : null;
+        }
         const tile = state.tiles.find(t => t.id === s.tileId);
         return tile && tile.image ? tile.image : null;
       }
       function imageNode(layer, clip, meta) {
         const node = el("image", { href: layer.src, x: layer.x, y: layer.y, width: W * layer.scale, height: H * layer.scale, preserveAspectRatio: "xMidYMid slice", ...(clip ? { "clip-path": `url(#${clip})` } : {}) });
-        if (meta.kind === "cover") {
+        if (meta.kind === "cover" || meta.kind === "tileGroup") {
           node.style.pointerEvents = "none";
         } else {
           node.style.cursor = "move";
@@ -465,6 +556,14 @@
         filter.innerHTML = `<feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" seed="11" result="grain"/><feDisplacementMap in="SourceGraphic" in2="grain" scale="1.15" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation="0.18"/>`;
         d.appendChild(filter);
         state.tiles.forEach(t => d.appendChild(el("clipPath", { id: `${t.id}-clip` })).appendChild(el("path", { d: t.path })));
+        state.imageGroups.forEach(group => {
+          const clip = el("clipPath", { id: `${group.id}-clip` });
+          group.tileIds.forEach(id => {
+            const tile = state.tiles.find(t => t.id === id);
+            if (tile) clip.appendChild(el("path", { d: tile.path }));
+          });
+          d.appendChild(clip);
+        });
         return d;
       }
       function render() {
@@ -480,46 +579,73 @@
           if (t.mode === "colorFill") svg.appendChild(el("path", { d: t.path, fill: t.color || "#fff" }));
           if (t.mode === "imageFill" && t.image) svg.appendChild(imageNode(t.image, `${t.id}-clip`, { kind: "tile", tileId: t.id }));
         });
+        pruneImageGroups();
+        state.imageGroups.forEach(group => {
+          svg.appendChild(imageNode(group.image, `${group.id}-clip`, { kind: "tileGroup", groupId: group.id }));
+        });
 
         state.tiles.forEach(t => {
           const p = el("path", { d: t.path, fill: "rgba(255,255,255,0.001)", stroke: "transparent", "stroke-width": 0, style: "cursor:pointer" });
           p.onclick = e => {
             e.stopPropagation();
             if (e.detail > 1) return;
+            if (state.multiSelectMode) {
+              resetNonTileSelection();
+              const selected = new Set(selectedTileIds());
+              if (selected.has(t.id) && selected.size > 1) selected.delete(t.id);
+              else selected.add(t.id);
+              state.selectedTiles = [...selected];
+              state.selectedTile = state.selectedTiles[0] || t.id;
+              setMsg(`已選 ${state.selectedTiles.length} 塊。選完後點「我選完了！」。`);
+              renderSide();
+              render();
+              return;
+            }
             if (t.mode === "revealBase") {
               saveHistory();
               Object.assign(t, { mode: "default", image: null, color: null });
               state.selectedTile = null;
+              state.selectedTiles = [];
               setMsg("已恢復這一塊的覆蓋圖。");
             } else {
               state.selectedTile = state.selectedTile === t.id ? null : t.id;
+              state.selectedTiles = state.selectedTile ? [state.selectedTile] : [];
             }
-            state.selectedImage = null; state.selectedText = null; state.selectedSticker = null; renderSide(); render();
+            resetNonTileSelection(); renderSide(); render();
           };
           p.ondblclick = e => {
             e.stopPropagation();
             saveHistory();
             Object.assign(t, { mode: "revealBase", image: null, color: null });
             state.selectedTile = null;
+            state.selectedTiles = [];
+            state.multiSelectMode = false;
             state.selectedImage = null;
             setMsg("已擦除這一塊的覆蓋圖。單擊該拼圖塊可取消擦除。");
             renderSide(); render();
           };
           svg.appendChild(p);
         });
-        puzzleLines.forEach(d => {
-          [
+        const pencilStrokes = isCompactViewport()
+          ? [
+            { w: 2.4, o: .24, dx: .45, dy: -.25 },
+            { w: 1.1, o: .36, dx: 0, dy: 0 }
+          ]
+          : [
             { w: 4.2, o: .13, dx: -.75, dy: .45 },
             { w: 2.6, o: .20, dx: .7, dy: -.35 },
             { w: 1.45, o: .34, dx: 0, dy: 0 },
             { w: .75, o: .18, dx: 1.25, dy: .85 }
-          ].forEach(stroke => {
-            svg.appendChild(el("path", { d, transform: `translate(${stroke.dx} ${stroke.dy})`, fill: "none", stroke: state.lineColor, "stroke-width": stroke.w, "stroke-opacity": state.lineOpacity * stroke.o, "stroke-linecap": "round", "stroke-linejoin": "round", "filter": "url(#pencil-line)", "pointer-events": "none" }));
+          ];
+        puzzleLines.forEach(d => {
+          pencilStrokes.forEach(stroke => {
+            svg.appendChild(el("path", { d, transform: `translate(${stroke.dx} ${stroke.dy})`, fill: "none", stroke: state.lineColor, "stroke-width": stroke.w, "stroke-opacity": state.lineOpacity * stroke.o, "stroke-linecap": "round", "stroke-linejoin": "round", ...(isCompactViewport() ? {} : { filter: "url(#pencil-line)" }), "pointer-events": "none" }));
           });
         });
 
-        const t = state.tiles.find(x => x.id === state.selectedTile);
-        if (t) svg.appendChild(el("path", { d: t.path, fill: "rgba(255,255,255,.18)", stroke: "#151515", "stroke-width": 6, "stroke-linejoin": "round", "pointer-events": "none" }));
+        selectedTileObjects().forEach(t => {
+          svg.appendChild(el("path", { d: t.path, fill: "rgba(255,255,255,.18)", stroke: state.multiSelectMode ? "#f2619c" : "#151515", "stroke-width": 6, "stroke-linejoin": "round", "pointer-events": "none" }));
+        });
 
         state.texts.forEach(item => {
           const box = textBox(item);
@@ -575,10 +701,7 @@
       }
       svg.onclick = e => {
         if (e.target !== svg) return;
-        state.selectedImage = null;
-        state.selectedTile = null;
-        state.selectedText = null;
-        state.selectedSticker = null;
+        clearSelection();
         setMsg("已完成目前調整。");
         renderSide();
         render();
@@ -632,12 +755,16 @@
       }
       function beginImageMove(e, meta) {
         e.stopPropagation();
-        const layer = meta.kind === "base" ? state.base : state.tiles.find(t => t.id === meta.tileId).image;
+        const group = meta.kind === "tileGroup" ? imageGroup(meta.groupId) : null;
+        const layer = meta.kind === "base" ? state.base : meta.kind === "tileGroup" ? group && group.image : state.tiles.find(t => t.id === meta.tileId).image;
+        if (!layer) return;
         const p = point(e);
         saveHistory();
         state.selectedImage = meta;
         state.selectedTile = null;
-        state.drag = { type: "imageMove", layer, dx: p.x - layer.x, dy: p.y - layer.y };
+        state.selectedTiles = [];
+        state.multiSelectMode = false;
+        state.drag = { type: "imageMove", layer, dx: p.x - layer.x, dy: p.y - layer.y, startX: p.x, startY: p.y, moved: false };
         setMsg("拖動圖片移動；拉四角選中框縮放。");
         renderSide(); render();
       }
@@ -654,6 +781,8 @@
         const p = point(e);
         saveHistory();
         state.selectedImage = null; state.selectedTile = null;
+        state.selectedTiles = [];
+        state.multiSelectMode = false;
         state.selectedText = type === "text" ? id : null;
         state.selectedSticker = type === "sticker" ? id : null;
         state.drag = { type, id, dx: p.x - x, dy: p.y - y };
@@ -670,6 +799,8 @@
         state.selectedImage = null;
         state.selectedText = null;
         state.selectedTile = null;
+        state.selectedTiles = [];
+        state.multiSelectMode = false;
         state.drag = { type: "stickerScale", id, corner, startDistance, startScale: item.scale };
         renderSide();
         render();
@@ -685,6 +816,8 @@
         state.selectedImage = null;
         state.selectedText = null;
         state.selectedTile = null;
+        state.selectedTiles = [];
+        state.multiSelectMode = false;
         state.drag = { type: "stickerRotate", id, startAngle, startRotation: item.rotation || 0 };
         renderSide();
         render();
@@ -700,6 +833,8 @@
         state.selectedImage = null;
         state.selectedSticker = null;
         state.selectedTile = null;
+        state.selectedTiles = [];
+        state.multiSelectMode = false;
         state.drag = { type: "textScale", id, corner, startDistance, startScale: item.scale || 1 };
         renderSide();
         render();
@@ -715,6 +850,8 @@
         state.selectedImage = null;
         state.selectedSticker = null;
         state.selectedTile = null;
+        state.selectedTiles = [];
+        state.multiSelectMode = false;
         state.drag = { type: "textRotate", id, startAngle, startRotation: item.rotation || 0 };
         renderSide();
         render();
@@ -722,7 +859,10 @@
       svg.onpointermove = e => {
         if (!state.drag) return;
         const p = point(e), d = state.drag;
-        if (d.type === "imageMove") { d.layer.x = p.x - d.dx; d.layer.y = p.y - d.dy; render(); return; }
+        if (d.type === "imageMove") {
+          if (Math.hypot(p.x - d.startX, p.y - d.startY) > 4) d.moved = true;
+          d.layer.x = p.x - d.dx; d.layer.y = p.y - d.dy; render(); return;
+        }
         if (d.type === "imageScale") {
           const delta = Math.max(Math.abs(p.x - d.startX), Math.abs(p.y - d.startY));
           const sign = (d.corner === "se" || d.corner === "ne") ? Math.sign(p.x - d.startX) : -Math.sign(p.x - d.startX);
@@ -765,14 +905,21 @@
         const item = list.find(x => x.id === d.id);
         if (item) { item.x = p.x - d.dx; item.y = p.y - d.dy; render(); }
       };
-      svg.onpointerup = () => state.drag = null;
+      svg.onpointerup = () => {
+        if (state.drag && state.drag.type === "imageMove" && state.selectedImage && state.selectedImage.kind === "tileGroup" && !state.drag.moved) {
+          state.drag = null;
+          clearSelection();
+          setMsg("已完成整體圖片調整，現在可以正常點選拼圖塊。");
+          renderSide();
+          render();
+          return;
+        }
+        state.drag = null;
+      };
       svg.onpointerleave = () => state.drag = null;
       document.querySelector(".stage").onclick = e => {
         if (document.getElementById("poster").contains(e.target)) return;
-        state.selectedImage = null;
-        state.selectedTile = null;
-        state.selectedText = null;
-        state.selectedSticker = null;
+        clearSelection();
         setMsg("已完成目前調整。");
         renderSide();
         render();
@@ -787,7 +934,8 @@
         const layer = activeLayer();
         if (layer) {
           side.className = "stack";
-          side.innerHTML = `<div class="mini-preview"><img src="${layer.src}"></div><div class="empty">目前選中：${state.selectedImage.kind === "base" ? "底片" : "拼圖塊圖片"}<br>直接拖動畫布內圖片移動，拖四角控制點縮放。</div>`;
+          const label = state.selectedImage.kind === "base" ? "底片" : state.selectedImage.kind === "tileGroup" ? "多塊拼圖整體圖片" : "拼圖塊圖片";
+          side.innerHTML = `<div class="mini-preview"><img src="${layer.src}"></div><div class="empty">目前選中：${label}<br>直接拖動畫布內圖片移動，拖四角控制點縮放。</div>`;
           return;
         }
         const textItem = state.texts.find(t => t.id === state.selectedText);
@@ -846,9 +994,11 @@
           document.getElementById("deleteSticker").onclick = () => { saveHistory(); state.stickers = state.stickers.filter(t => t.id !== stickerItem.id); state.selectedSticker = null; renderSide(); render(); };
           return;
         }
-        if (state.cover && state.cover.type === "solid") {
+        const selectedTiles = selectedTileObjects();
+        const tile = selectedTiles[0];
+        if (!tile && state.cover && state.cover.type === "solid") {
           side.className = "stack";
-          side.innerHTML = `<div class="empty">目前選中：純色覆蓋圖層<br>這個顏色會覆蓋在尚未單獨編輯的拼圖塊上。</div>
+          side.innerHTML = `<div class="empty">目前選中：純色覆蓋圖層<br>這個顏色會覆蓋在尚未單獨編輯的拼圖塊上。點擊任意拼圖塊即可切換到拼圖塊編輯。</div>
             <div class="panel">
               <p class="panel-title">覆蓋圖層顏色</p>
               <div class="color-picker-row"><input id="coverSolidColor" type="color" value="${state.cover.color || "#e7bef8"}"><button class="primary color-apply" id="applyCoverSolid">套用顏色</button></div>
@@ -867,26 +1017,38 @@
           });
           return;
         }
-        const tile = state.tiles.find(t => t.id === state.selectedTile);
         if (!tile) { side.className = "empty"; side.innerHTML = "點擊拼圖塊或畫布內的圖片開始編輯。"; return; }
         side.className = "stack";
-        side.innerHTML = `<div class="empty">已選擇 ${tile.id.replace("tile-", "第 ")} 塊<br>目前狀態：${tile.mode}</div>
+        side.innerHTML = `<div class="empty">已選擇 ${selectedTiles.length > 1 ? `${selectedTiles.length} 塊拼圖` : `${tile.id.replace("tile-", "第 ")} 塊`}<br>目前狀態：${selectedTiles.length > 1 ? "批量編輯" : tile.mode}</div>
+          <button class="tool ghost" id="multiTiles">${state.multiSelectMode ? "我選完了！" : "繼續選其它拼圖塊"}</button>
+          <p class="hint">${state.multiSelectMode ? "現在點擊畫板上的拼圖塊可加入或取消選中。" : "需要一次改多塊時，先點這個按鈕，再去畫板上選其它拼圖塊。"}</p>
           <button class="tool primary" id="reveal">擦掉覆蓋圖</button>
           <p class="hint">雙擊拼圖塊🧩顯示底片✨</p>
-          <button class="tool primary" id="insert">插入圖片</button>
+          <button class="tool primary" id="insert">插入圖片${selectedTiles.length > 1 ? "到已選拼圖" : ""}</button>
           <div class="panel"><p class="panel-title">填充顏色</p><div class="color-picker-row"><input id="customColor" type="color" value="${tile.color || "#ff8fab"}"><button class="primary color-apply" id="applyColor">套用顏色</button></div><p class="hint">點擊左側色盤開啟完整顏色選擇器。</p><div class="grid4" id="colors" style="margin-top:10px"></div></div>
-          <button id="clearTile">清除這一塊</button>`;
-        document.getElementById("reveal").onclick = () => { saveHistory(); Object.assign(tile, { mode: "revealBase", image: null, color: null }); setMsg("已擦除這一塊的覆蓋圖。單擊該拼圖塊可取消擦除。"); render(); renderSide(); };
+          <button id="clearTile">清除${selectedTiles.length > 1 ? "已選拼圖" : "這一塊"}</button>`;
+        document.getElementById("multiTiles").onclick = () => {
+          state.multiSelectMode = !state.multiSelectMode;
+          normalizeTileSelection();
+          setMsg(state.multiSelectMode ? "開始選其它拼圖塊。選完後點「我選完了！」。" : `已完成選擇，共 ${selectedTileIds().length} 塊。`);
+          renderSide();
+          render();
+        };
+        document.getElementById("reveal").onclick = () => { saveHistory(); const ids = selectedTileIds(); clearTilesFromImageGroups(ids); applyToSelectedTiles(t => Object.assign(t, { mode: "revealBase", image: null, color: null, imageGroupId: null })); state.multiSelectMode = false; setMsg(`已擦除 ${ids.length} 塊的覆蓋圖。單擊已擦除拼圖塊可取消擦除。`); render(); renderSide(); };
         document.getElementById("insert").onclick = () => document.getElementById("tileImageInput").click();
-        document.getElementById("clearTile").onclick = () => { saveHistory(); Object.assign(tile, { mode: "default", image: null, color: null }); render(); renderSide(); };
-        document.getElementById("applyColor").onclick = () => { saveHistory(); Object.assign(tile, { mode: "colorFill", color: document.getElementById("customColor").value, image: null }); render(); };
-        document.getElementById("customColor").onchange = e => { saveHistory(); Object.assign(tile, { mode: "colorFill", color: e.target.value, image: null }); render(); };
+        document.getElementById("clearTile").onclick = () => { saveHistory(); const ids = selectedTileIds(); clearTilesFromImageGroups(ids); applyToSelectedTiles(t => Object.assign(t, { mode: "default", image: null, color: null, imageGroupId: null })); state.multiSelectMode = false; render(); renderSide(); };
+        document.getElementById("applyColor").onclick = () => { saveHistory(); const ids = selectedTileIds(); const color = document.getElementById("customColor").value; clearTilesFromImageGroups(ids); applyToSelectedTiles(t => Object.assign(t, { mode: "colorFill", color, image: null, imageGroupId: null })); state.multiSelectMode = false; render(); renderSide(); };
+        document.getElementById("customColor").onchange = e => { saveHistory(); const ids = selectedTileIds(); clearTilesFromImageGroups(ids); applyToSelectedTiles(t => Object.assign(t, { mode: "colorFill", color: e.target.value, image: null, imageGroupId: null })); state.multiSelectMode = false; render(); renderSide(); };
         document.getElementById("colors").innerHTML = colors.map(c => `<button class="swatch" data-color="${c}" style="background:${c}"></button>`).join("");
         document.querySelectorAll("[data-color]").forEach(b => b.onclick = () => {
           saveHistory();
           document.getElementById("customColor").value = b.dataset.color;
-          Object.assign(tile, { mode: "colorFill", color: b.dataset.color, image: null });
+          const ids = selectedTileIds();
+          clearTilesFromImageGroups(ids);
+          applyToSelectedTiles(t => Object.assign(t, { mode: "colorFill", color: b.dataset.color, image: null, imageGroupId: null }));
+          state.multiSelectMode = false;
           render();
+          renderSide();
         });
       }
       function escapeHtml(value) {
@@ -945,6 +1107,8 @@
           state.selectedImage = null;
           state.selectedText = null;
           state.selectedTile = null;
+          state.selectedTiles = [];
+          state.multiSelectMode = false;
           renderSide();
           render();
         });
@@ -955,8 +1119,7 @@
         document.querySelector("[data-cover-off]").onclick = () => {
           saveHistory();
           state.cover = null;
-          state.selectedImage = null;
-          state.selectedTile = null;
+          clearSelection();
           setMsg("覆蓋圖層已關閉。現在只顯示底片和拼圖線條。");
           renderCoverGrid(); renderSide(); render();
         };
@@ -969,10 +1132,7 @@
             state.cover = { type: "solid", color: state.cover && state.cover.color ? state.cover.color : "#e7bef8" };
             setMsg("已開啟純色覆蓋圖層。可在右側欄自訂顏色。");
           }
-          state.selectedImage = null;
-          state.selectedTile = null;
-          state.selectedText = null;
-          state.selectedSticker = null;
+          clearSelection();
           renderCoverGrid(); renderSide(); render();
         };
         document.querySelectorAll("[data-cover]").forEach(b => b.onclick = () => {
@@ -984,8 +1144,7 @@
             state.cover = { type: "image", src: b.dataset.cover, x: 0, y: 0, scale: 1 };
             setMsg("已開啟覆蓋圖層。再次點擊當前縮圖可關閉。");
           }
-          state.selectedImage = null;
-          state.selectedTile = null;
+          clearSelection();
           renderCoverGrid(); renderSide(); render();
         });
       }
@@ -993,6 +1152,11 @@
         saveHistory();
         state.base = { src, x: 0, y: 0, scale: 1 };
         state.selectedImage = { kind: "base" };
+        state.selectedTile = null;
+        state.selectedTiles = [];
+        state.selectedText = null;
+        state.selectedSticker = null;
+        state.multiSelectMode = false;
         e.target.value = "";
         setMsg("底片已更新。直接在畫布中調整它。");
         renderSide(); render();
@@ -1000,19 +1164,42 @@
       document.getElementById("coverInput").onchange = e => readFile(e.target.files[0], src => {
         saveHistory();
         state.cover = { type: "image", src, x: 0, y: 0, scale: 1 };
-        state.selectedImage = null;
+        clearSelection();
+        e.target.value = "";
         setMsg("自訂覆蓋圖層已上傳並開啟。");
         renderCoverGrid(); renderSide(); render();
       });
       document.getElementById("tileImageInput").onchange = e => readFile(e.target.files[0], src => {
-        const tile = state.tiles.find(t => t.id === state.selectedTile);
-        if (!tile) return;
+        const tiles = selectedTileObjects();
+        if (!tiles.length) return;
         saveHistory();
-        tile.mode = "imageFill";
-        tile.image = { src, x: 0, y: 0, scale: 1.05 };
-        state.selectedImage = { kind: "tile", tileId: tile.id };
-        state.selectedTile = null;
-        setMsg("拼圖塊圖片已插入。直接拖動和拉四角縮放。");
+        if (tiles.length === 1) {
+          clearTilesFromImageGroups([tiles[0].id]);
+          tiles[0].mode = "imageFill";
+          tiles[0].image = { src, x: 0, y: 0, scale: 1.05 };
+          tiles[0].imageGroupId = null;
+          state.selectedImage = { kind: "tile", tileId: tiles[0].id };
+          state.selectedTile = null;
+          state.selectedTiles = [];
+          setMsg("拼圖塊圖片已插入。直接拖動和拉四角縮放。");
+        } else {
+          const tileIds = tiles.map(tile => tile.id);
+          clearTilesFromImageGroups(tileIds);
+          const group = { id: uid("tile-group"), tileIds, image: { src, x: 0, y: 0, scale: 1.05 } };
+          state.imageGroups.push(group);
+          tiles.forEach(tile => {
+            tile.mode = "imageGroup";
+            tile.image = null;
+            tile.color = null;
+            tile.imageGroupId = group.id;
+          });
+          state.selectedImage = { kind: "tileGroup", groupId: group.id };
+          state.selectedTile = null;
+          state.selectedTiles = [];
+          state.multiSelectMode = false;
+          setMsg(`圖片已作為整體插入到 ${tiles.length} 塊拼圖。可直接拖動和縮放。`);
+        }
+        e.target.value = "";
         renderSide(); render();
       });
       document.getElementById("lineOpacity").oninput = e => { state.lineOpacity = Number(e.target.value); render(); };
@@ -1020,11 +1207,11 @@
       document.getElementById("addText").onclick = () => {
         saveHistory();
         const item = { id: uid("text"), content: "添加文本", x: W / 2, y: H * .82, fontSize: 66, color: "#151515", fontFamily: "TPearl", scale: 1, rotation: 0 };
-        state.texts.push(item); state.selectedText = item.id; state.selectedImage = null; renderSide(); render();
+        state.texts.push(item); state.selectedText = item.id; state.selectedImage = null; state.selectedTile = null; state.selectedTiles = []; state.selectedSticker = null; state.multiSelectMode = false; renderSide(); render();
       };
       document.getElementById("resetBtn").onclick = () => {
         saveHistory();
-        syncCanvasGeometry(true); state.texts = []; state.stickers = []; state.selectedTile = null; state.selectedImage = null; state.selectedText = null; state.selectedSticker = null; state.cover = null;
+        syncCanvasGeometry(true); state.texts = []; state.stickers = []; clearSelection(); state.cover = null;
         setMsg("已重置局部編輯，並關閉覆蓋圖層。"); renderCoverGrid(); renderSide(); render();
       };
       document.getElementById("undoBtn").onclick = () => {
@@ -1042,8 +1229,8 @@
         setMsg("已恢復。");
       };
       document.getElementById("exportBtn").onclick = async () => {
-        const prevImage = state.selectedImage, prevTile = state.selectedTile;
-        state.selectedImage = null; state.selectedTile = null; render();
+        const prevImage = state.selectedImage, prevTile = state.selectedTile, prevTiles = [...state.selectedTiles], prevMulti = state.multiSelectMode;
+        state.selectedImage = null; state.selectedTile = null; state.selectedTiles = []; state.multiSelectMode = false; render();
         const xml = new XMLSerializer().serializeToString(svg);
         const img = new Image();
         img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
@@ -1055,7 +1242,7 @@
         a.download = "puzzle-poster.png";
         a.href = canvas.toDataURL("image/png");
         a.click();
-        state.selectedImage = prevImage; state.selectedTile = prevTile; render();
+        state.selectedImage = prevImage; state.selectedTile = prevTile; state.selectedTiles = prevTiles; state.multiSelectMode = prevMulti; render();
       };
       renderCoverGrid();
       renderRatioGrid();
